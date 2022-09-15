@@ -10,22 +10,43 @@ import matplotlib.pyplot as plt
 
 def check_training_result(gen_a, gen_b, epoch):
     with open('./tmp_pkl_data/{}_ashrae_{}_to_{}_cl.pkl'.format(train_building_name, context_a, context_b), 'rb') as r:
-        _, _, load_max, load_min, df = pickle.load(r)
+        save_dict = pickle.load(r)
 
     # get domain a and domain b data
-    df_context_a = df[df['8_class'] == context_a]
-    df_context_b = df[df['8_class'] == context_b]
-    df_context_a.reset_index(drop=True, inplace=True)
-    df_context_b.reset_index(drop=True, inplace=True)
-
-    temp_a = df_context_a[:24 * num_data]
-    temp_b = df_context_b[:24 * num_data]
+    context_a_data = save_dict.get('context_a_data')
+    context_b_data = save_dict.get('context_b_data')
+    load_max = save_dict.get('load_max')
+    load_min = save_dict.get('load_min')
 
     data_a = []
     data_b = []
-    for i in range(num_data):
-        data_a.append(temp_a.loc[24 * i: 24 * (i + 1) - 1, 'nor_cl'])
-        data_b.append(temp_b.loc[24 * i: 24 * (i + 1) - 1, 'nor_cl'])
+    if not context_a_is_weekend and not context_b_is_weekend:  # weekday to weekday
+        temp_a = min([len(context_a_data[i]) for i in range(5)])
+        temp_b = min([len(context_b_data[i]) for i in range(5)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(5):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
+    elif not context_a_is_weekend and context_b_is_weekend:  # weekday to weekend
+        temp_a = min([len(context_a_data[i]) for i in range(2)])  # 周一周二 -> 周六周日
+        temp_b = min([len(context_b_data[i]) for i in range(2)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(2):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
+    elif context_a_is_weekend and not context_b_is_weekend:  # weekend to weekday
+        aaa = 1
+        # note: to be continued
+    else:  # weekend to weekend
+        temp_a = min([len(context_a_data[i]) for i in range(2)])
+        temp_b = min([len(context_b_data[i]) for i in range(2)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(2):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
     data_a = np.array(data_a)
     data_b = np.array(data_b)
 
@@ -76,16 +97,16 @@ def check_training_result(gen_a, gen_b, epoch):
     mae = sum(mae_list) / len(mae_list)
 
     # draw graphs
-    fig = plt.figure(figsize=(10, 6))
-    fig.add_subplot(111)
-    plt.plot(range(len(denorm_real_data)), denorm_real_data, label='real_data', color='blue')
-    plt.plot(range(len(denorm_fake_data)), denorm_fake_data, label='fake_data', color='orange')
-    plt.plot(range(len(denorm_original_data)), denorm_original_data, label='original_data', color='green')
-    plt.title('MAE = {}'.format(mae), loc='right')
-    plt.title('{}_coolingLoad'.format(train_building_name))
-    plt.grid()
-    plt.legend()
-    plt.savefig('./train_result/{}_epoch_{}.png'.format(train_building_name, epoch))
+    # fig = plt.figure(figsize=(10, 6))
+    # fig.add_subplot(111)
+    # plt.plot(range(len(denorm_real_data)), denorm_real_data, label='real_data', color='blue')
+    # plt.plot(range(len(denorm_fake_data)), denorm_fake_data, label='fake_data', color='orange')
+    # plt.plot(range(len(denorm_original_data)), denorm_original_data, label='original_data', color='green')
+    # plt.title('MAE = {}'.format(mae), loc='right')
+    # plt.title('{}_coolingLoad'.format(train_building_name))
+    # plt.grid()
+    # plt.legend()
+    # plt.savefig('./train_result/{}_epoch_{}.png'.format(train_building_name, epoch))
 
     return mae
 
@@ -99,7 +120,9 @@ def UNIT_Train_cl():
 
     # set up data loader
     with open('./tmp_pkl_data/{}_ashrae_{}_to_{}_cl.pkl'.format(train_building_name, context_a, context_b), 'rb') as r:
-        data_a, data_b, _, _, _ = pickle.load(r)
+        save_dict = pickle.load(r)
+    data_a = save_dict.get('cl_a')
+    data_b = save_dict.get('cl_b')
     train_dataset = TrainSet(data_a, data_b)
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
     print('data_a shape: {}'.format(data_a.shape))

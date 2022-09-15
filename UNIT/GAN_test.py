@@ -8,27 +8,42 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def generate_data(df):
+def generate_data(context_a_data, context_b_data):
     # set up trained_models
     gen_a = Generator()
     gen_b = Generator()
     gen_a.load_state_dict(torch.load(gen_a_cl_save_path))
     gen_b.load_state_dict(torch.load(gen_b_cl_save_path))
 
-    # get domain a and domain b data
-    df_context_a = df[df['8_class'] == context_a]
-    df_context_b = df[df['8_class'] == context_b]
-    df_context_a.reset_index(drop=True, inplace=True)
-    df_context_b.reset_index(drop=True, inplace=True)
-
-    temp_a = df_context_a[:24 * num_data]
-    temp_b = df_context_b[:24 * num_data]
-
     data_a = []
     data_b = []
-    for i in range(num_data):
-        data_a.append(temp_a.loc[24 * i: 24 * (i + 1) - 1, 'nor_cl'])
-        data_b.append(temp_b.loc[24 * i: 24 * (i + 1) - 1, 'nor_cl'])
+    if not context_a_is_weekend and not context_b_is_weekend:  # weekday to weekday
+        temp_a = min([len(context_a_data[i]) for i in range(5)])
+        temp_b = min([len(context_b_data[i]) for i in range(5)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(5):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
+    elif not context_a_is_weekend and context_b_is_weekend:  # weekday to weekend
+        temp_a = min([len(context_a_data[i]) for i in range(2)])  # 周一周二 -> 周六周日
+        temp_b = min([len(context_b_data[i]) for i in range(2)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(2):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
+    elif context_a_is_weekend and not context_b_is_weekend:  # weekend to weekday
+        aaa = 1
+        # note: to be continued
+    else:  # weekend to weekend
+        temp_a = min([len(context_a_data[i]) for i in range(2)])
+        temp_b = min([len(context_b_data[i]) for i in range(2)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(2):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
     data_a = np.array(data_a)
     data_b = np.array(data_b)
 
@@ -75,9 +90,14 @@ def generate_data(df):
 def UNIT_Test_cl(test_building_name):
     # load data and set data loader
     with open('./tmp_pkl_data/{}_ashrae_{}_to_{}_cl.pkl'.format(test_building_name, context_a, context_b), 'rb') as r:
-        _, _, load_max, load_min, df = pickle.load(r)
+        save_dict = pickle.load(r)
 
-    fake_data, real_data, original_data = generate_data(df=df)
+    context_a_data = save_dict.get('context_a_data')
+    context_b_data = save_dict.get('context_b_data')
+    load_max = save_dict.get('load_max')
+    load_min = save_dict.get('load_min')
+
+    fake_data, real_data, original_data = generate_data(context_a_data, context_b_data)
 
     # denormalize
     final_fake_data = [fake_data[i] * (load_max - load_min) + load_min for i in range(len(fake_data))]
@@ -92,12 +112,12 @@ def UNIT_Test_cl(test_building_name):
     fig = plt.figure(figsize=(10, 6))
     fig.add_subplot(111)
     plt.plot(range(len(final_real_data)), final_real_data, label='real_data', color='blue')
-    plt.plot(range(len(final_fake_data)), final_fake_data, label='fake_data', color='orange')
+    plt.plot(range(len(final_fake_data)), final_fake_data, label='generated_data', color='orange')
     plt.plot(range(len(final_original_data)), final_original_data, label='original_data', color='green')
     plt.title('MAE = {}'.format(mae), loc='right')
     plt.title('{}_coolingLoad'.format(test_building_name))
-    plt.grid()
-    plt.legend()
+    # plt.grid()
+    plt.legend(loc=1, fontsize=15)
     plt.show()
 
 
