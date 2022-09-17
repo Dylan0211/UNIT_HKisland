@@ -34,8 +34,13 @@ def generate_data(context_a_data, context_b_data):
                 data_a.append(context_a_data[j][i])
                 data_b.append(context_b_data[j][i])
     elif context_a_is_weekend and not context_b_is_weekend:  # weekend to weekday
-        aaa = 1
-        # note: to be continued
+        temp_a = min([len(context_a_data[i]) for i in range(5)])
+        temp_b = min([len(context_b_data[i]) for i in range(5)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(5):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
     else:  # weekend to weekend
         temp_a = min([len(context_a_data[i]) for i in range(2)])
         temp_b = min([len(context_b_data[i]) for i in range(2)])
@@ -111,13 +116,13 @@ def UNIT_Test_cl(test_building_name):
     # draw graphs
     fig = plt.figure(figsize=(10, 6))
     fig.add_subplot(111)
-    plt.plot(range(len(final_real_data)), final_real_data, label='real_data', color='blue')
-    plt.plot(range(len(final_fake_data)), final_fake_data, label='generated_data', color='orange')
-    plt.plot(range(len(final_original_data)), final_original_data, label='original_data', color='green')
+    # plt.plot(range(len(final_real_data)), final_real_data, label='real_data', color='blue')
+    plt.plot(range(len(final_fake_data)), final_fake_data, label='generated_data', color='red')
+    # plt.plot(range(len(final_original_data)), final_original_data, label='original_data', color='green')
     plt.title('MAE = {}'.format(mae), loc='right')
     plt.title('{}_coolingLoad'.format(test_building_name))
     # plt.grid()
-    plt.legend(loc=1, fontsize=15)
+    # plt.legend(loc=1, fontsize=15)
     plt.show()
 
 

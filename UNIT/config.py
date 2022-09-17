@@ -23,13 +23,13 @@ spring average weekday,             6
 fall average weekday                7
 """
 context_a = 1
-context_b = 5
+context_b = 4
 context_a_is_weekend = True if context_a in [2, 5] else False
 context_b_is_weekend = True if context_b in [2, 5] else False
 
-read_data_building_name = 'OIE'
+read_data_building_name = 'OXH'
 train_building_name = 'OIE'
-test_building_name = 'OIE'
+test_building_name = 'OXH'
 gen_a_cl_save_path = './models/{}_ashrae_{}_to_{}_cl.pt'.format(train_building_name, context_a, context_b)
 gen_b_cl_save_path = './models/{}_ashrae_{}_to_{}_cl.pt'.format(train_building_name, context_b, context_a)
 

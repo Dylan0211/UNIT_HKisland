@@ -1,3 +1,7 @@
+"""
+UNIT中GAN的复现
+"""
+
 from torch import nn
 from torch.autograd import Variable
 from torch.utils.data import Dataset

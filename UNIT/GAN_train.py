@@ -37,8 +37,13 @@ def check_training_result(gen_a, gen_b, epoch):
                 data_a.append(context_a_data[j][i])
                 data_b.append(context_b_data[j][i])
     elif context_a_is_weekend and not context_b_is_weekend:  # weekend to weekday
-        aaa = 1
-        # note: to be continued
+        temp_a = min([len(context_a_data[i]) for i in range(5)])
+        temp_b = min([len(context_b_data[i]) for i in range(5)])
+        num_days = min(temp_a, temp_b)
+        for i in range(num_days):
+            for j in range(5):
+                data_a.append(context_a_data[j][i])
+                data_b.append(context_b_data[j][i])
     else:  # weekend to weekend
         temp_a = min([len(context_a_data[i]) for i in range(2)])
         temp_b = min([len(context_b_data[i]) for i in range(2)])

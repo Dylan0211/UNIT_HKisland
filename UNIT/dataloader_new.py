@@ -1,5 +1,5 @@
 """
-这个是最新的版本，负责周中数据到周中数据的context转换
+这个是最新的版本，负责周中数据到周中数据的context转换的数据生成
 """
 from config import *
 from datetime import datetime
@@ -240,10 +240,12 @@ def create_a_and_b(df, context_a, context_b):
         for j in range(len(context_a_each_day_data[i])):
             this_index = df[df['time'] == context_a_each_day_data[i][j]].index[0]
             context_a_data[i].append(np.array(df.loc[this_index: this_index + 23, 'nor_cl']))
-    context_b_data = [[] for i in range(2)] if context_a_is_weekend else [[] for i in range(5)]
+    context_b_data = [[] for i in range(2)] if context_b_is_weekend else [[] for i in range(5)]
     for i in range(len(context_b_each_day_data)):
         for j in range(len(context_b_each_day_data[i])):
             this_index = df[df['time'] == context_b_each_day_data[i][j]].index[0]
+            if this_index >= 15000:
+                aaa = 1
             context_b_data[i].append(np.array(df.loc[this_index: this_index + 23, 'nor_cl']))
 
     # note: 对周中到周末，这里只用周一周二的数据生成周六周日
@@ -262,8 +264,15 @@ def create_a_and_b(df, context_a, context_b):
                     cl_a.append(context_a_data[i][j])
                     cl_b.append(context_b_data[i][k])
     elif context_a_is_weekend and not context_b_is_weekend:  # weekend to weekday
-        aaa = 1
-        # note: to be continued
+        # 用周六周日的数据填充，补足五天的数据
+        context_a_data.append(context_a_data[0])
+        context_a_data.append(context_a_data[1])
+        context_a_data.append(context_a_data[0])
+        for i in range(5):
+            for j in range(len(context_a_data[i])):
+                for k in range(len(context_b_data[i])):
+                    cl_a.append(context_a_data[i][j])
+                    cl_b.append(context_b_data[i][k])
     else:  # weekend to weekend
         for i in range(2):
             for j in range(len(context_a_data[i])):
