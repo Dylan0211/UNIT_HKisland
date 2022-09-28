@@ -239,18 +239,14 @@ def create_a_and_b(df, context_a, context_b):
     for i in range(len(context_a_each_day_data)):  # every weekday data
         for j in range(len(context_a_each_day_data[i])):
             this_index = df[df['time'] == context_a_each_day_data[i][j]].index[0]
-            this_num = np.array(df.loc[this_index: this_index + 23, 'nor_cl'])
-            while this_num.shape[0] < 24:
-                this_num = np.append(this_num, this_num[this_num.shape[0] - 1])
-            context_a_data[i].append(this_num)
+            context_a_data[i].append(np.array(df.loc[this_index: this_index + 23, 'nor_cl']))
     context_b_data = [[] for i in range(2)] if context_b_is_weekend else [[] for i in range(5)]
     for i in range(len(context_b_each_day_data)):
         for j in range(len(context_b_each_day_data[i])):
             this_index = df[df['time'] == context_b_each_day_data[i][j]].index[0]
-            this_num = np.array(df.loc[this_index: this_index + 23, 'nor_cl'])
-            while this_num.shape[0] < 24:
-                this_num = np.append(this_num, this_num[this_num.shape[0] - 1])
-            context_b_data[i].append(this_num)
+            if this_index >= 15000:
+                aaa = 1
+            context_b_data[i].append(np.array(df.loc[this_index: this_index + 23, 'nor_cl']))
 
     # note: 对周中到周末，这里只用周一周二的数据生成周六周日
     cl_a = []

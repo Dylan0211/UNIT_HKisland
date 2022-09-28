@@ -2,13 +2,76 @@ from GAN_model import Generator, TrainSet
 from config import *
 from torch.utils.data import DataLoader
 
+import sys
 import torch
 import pickle
-import matplotlib.pyplot as plt
 import numpy as np
 
 
-def generate_data(context_a_data, context_b_data):
+def DTW_distance(arr_1, arr_2, max_warping_window=10000):
+    """
+    source: https://www.cnblogs.com/ningjing213/p/10502519.html
+    :param arr_1
+    :param arr_2
+    :param max_warping_window
+    :return:
+    """
+    ts_a = np.array(arr_1)
+    ts_b = np.array(arr_2)
+    M = ts_a.shape[0]
+    N = ts_b.shape[0]
+    cost = np.ones((M, N))
+    d = lambda x, y: ((x - y) ** 2)
+
+    # Initialize the first row and column
+    cost[0, 0] = d(ts_a[0], ts_b[0])
+    for i in range(1, M):
+        cost[i, 0] = cost[i - 1, 0] + d(ts_a[i], ts_b[0])
+    for j in range(1, N):
+        cost[0, j] = cost[0, j - 1] + d(ts_a[0], ts_b[j])
+
+    # Populate rest of cost matrix within window
+    for i in range(1, M):
+        for j in range(max(1, i - max_warping_window), min(N, i + max_warping_window)):
+            choices = cost[i - 1, j - 1], cost[i, j - 1], cost[i - 1, j]
+            cost[i, j] = min(choices) + d(ts_a[i], ts_b[j])
+
+    # Return DTW distance given window
+    return cost[-1, -1]
+
+
+def get_mae_for_24h_cl(generated_data, target_data, is_weekend):
+    num_days = 2 if is_weekend else 5
+
+    mae_list = []
+    for i in range(len(generated_data)):
+        this_data = generated_data[i]
+
+        min_dtw_distance = sys.maxsize
+        most_similar_data = None
+        for j in range(len(target_data)):
+            if j % num_days == i % num_days:
+                possible_data = target_data[j]
+                dtw_distance = DTW_distance(this_data, possible_data)
+                if dtw_distance < min_dtw_distance:
+                    min_dtw_distance = dtw_distance
+                    most_similar_data = possible_data
+
+        if most_similar_data is None:
+            continue
+
+        error_list = [abs(this_data[i] - most_similar_data[i]) for i in range(len(this_data))]
+        mae_list.append(sum(error_list) / len(error_list))
+
+    return sum(mae_list) / len(mae_list)
+
+
+def generate_data(save_dict):
+    context_a_data = save_dict.get('context_a_data')
+    context_b_data = save_dict.get('context_b_data')
+    load_max = save_dict.get('load_max')
+    load_min = save_dict.get('load_min')
+
     # set up trained_models
     gen_a = Generator()
     gen_b = Generator()
@@ -60,70 +123,42 @@ def generate_data(context_a_data, context_b_data):
 
     # start testing
     fake = []
-    real = []
-    original = []
     for x_a, x_b in test_loader:
         x_a = x_a.to(torch.float32)
         content, _ = gen_a.encode(x_a)
         output = gen_b.decode(content)
         fake.append(output.detach().numpy())
-        real.append(x_b.detach().numpy())
-        original.append(x_a.detach().numpy())
 
     # data processing
     fake_data = []
-    real_data = []
-    original_data = []
     for i in range(len(fake)):
         for j in range(fake[i].shape[0]):
             fake_data.append(fake[i][j])
-            real_data.append(real[i][j])
-            original_data.append(original[i][j])
 
-    final_fake_data = []
-    final_real_data = []
-    final_original_data = []
-    for i in range(len(real_data)):
-        for j in range(real_data[i].shape[0]):
-            final_real_data.append(real_data[i][j])
-            final_fake_data.append(fake_data[i][j])
-            final_original_data.append(original_data[i][j])
+    # denormalize
+    denorm_fake_data = []
+    denorm_real_data = []
+    for i in range(len(fake_data)):
+        denorm_fake_data.append([fake_data[i][j] * (load_max - load_min) + load_min
+                                 for j in range(fake_data[i].shape[0])])
+        denorm_real_data.append([data_b[i][j] * (load_max - load_min) + load_min
+                                 for j in range(data_b[i].shape[0])])
 
-    return final_fake_data, final_real_data, final_original_data
+    # error
+    mae = get_mae_for_24h_cl(generated_data=denorm_fake_data,
+                             target_data=denorm_real_data,
+                             is_weekend=context_a_is_weekend)
+
+    return mae
 
 
 def UNIT_Test_cl(test_building_name):
     # load data and set data loader
-    with open('./tmp_pkl_data/{}_ashrae_{}_to_{}_cl.pkl'.format(test_building_name, context_a, context_b), 'rb') as r:
+    with open('./tmp_pkl_data/{}_ashrae_{}_to_{}_data_dict.pkl'.format(test_building_name, context_a, context_b), 'rb') as r:
         save_dict = pickle.load(r)
 
-    context_a_data = save_dict.get('context_a_data')
-    context_b_data = save_dict.get('context_b_data')
-    load_max = save_dict.get('load_max')
-    load_min = save_dict.get('load_min')
-
-    fake_data, real_data, original_data = generate_data(context_a_data, context_b_data)
-
-    # denormalize
-    final_fake_data = [fake_data[i] * (load_max - load_min) + load_min for i in range(len(fake_data))]
-    final_real_data = [real_data[i] * (load_max - load_min) + load_min for i in range(len(real_data))]
-    final_original_data = [original_data[i] * (load_max - load_min) + load_min for i in range(len(original_data))]
-
-    # error
-    mae_list = [abs(final_real_data[i] - final_fake_data[i]) for i in range(len(final_real_data))]
-    mae = sum(mae_list) / len(mae_list)
-
-    # draw graphs
-    fig = plt.figure(figsize=(10, 6))
-    fig.add_subplot(111)
-    plt.plot(range(len(final_real_data)), final_real_data, label='real_data', color='blue')
-    plt.plot(range(len(final_fake_data)), final_fake_data, label='generated_data', color='red')
-    plt.plot(range(len(final_original_data)), final_original_data, label='original_data', color='green')
-    plt.title('MAE = {}'.format(mae), loc='right')
-    plt.title('{}_coolingLoad'.format(test_building_name))
-    plt.grid()
-    plt.legend(loc=1, fontsize=15)
-    plt.show()
+    mae = generate_data(save_dict)
+    print(':: MAE = {}'.format(mae))
 
 
 if __name__ == '__main__':
